@@ -1,11 +1,30 @@
-package org.jboss.eap.qe.microprofile.manual.mode.health.delay;
+package org.jboss.eap.qe.microprofile.health.delay;
+
+import static io.restassured.RestAssured.get;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.jboss.arquillian.container.test.api.ContainerController;
 import org.jboss.arquillian.junit.Arquillian;
+import org.jboss.arquillian.junit.InSequence;
 import org.jboss.arquillian.test.api.ArquillianResource;
-import org.jboss.eap.qe.microprofile.manual.mode.health.ManualTests;
-import org.jboss.eap.qe.microprofile.manual.mode.health.tools.HealthUrlProvider;
+import org.jboss.eap.qe.microprofile.health.ManualTests;
+import org.jboss.eap.qe.microprofile.health.tools.HealthUrlProvider;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.ConfigurationException;
+import org.jboss.eap.qe.microprofile.tooling.server.configuration.arquillian.ArquillianContainerProperties;
+import org.jboss.eap.qe.microprofile.tooling.server.configuration.arquillian.ArquillianDescriptorWrapper;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.creaper.ManagementClientProvider;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.EmptyAsset;
@@ -20,22 +39,6 @@ import org.junit.runner.RunWith;
 import org.wildfly.extras.creaper.core.online.CliException;
 import org.wildfly.extras.creaper.core.online.OnlineManagementClient;
 import org.wildfly.extras.creaper.core.online.operations.admin.Administration;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import static io.restassured.RestAssured.get;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.is;
 
 /**
  * Performs tests that aim to verify the MP Health check implementation in complex scenarios where delayed
@@ -54,6 +57,8 @@ public class NotReadyHealthCheckTest {
 
     private ExecutorService executorService;
 
+    private static ArquillianContainerProperties arqProps;
+
     /**
      * Here the server is started and then stopped just to set the value for empty-readiness-checks-status
      * attribute
@@ -68,7 +73,7 @@ public class NotReadyHealthCheckTest {
             throws ConfigurationException, IOException, CliException, TimeoutException, InterruptedException {
         controller.start(ManualTests.ARQUILLIAN_CONTAINER);
         try {
-            try (OnlineManagementClient client = ManagementClientProvider.onlineStandalone()) {
+            try (OnlineManagementClient client = ManagementClientProvider.onlineStandalone(arqProps)) {
                 client.execute(
                         "/subsystem=microprofile-health-smallrye:write-attribute(name=empty-readiness-checks-status,value=DOWN)")
                         .assertSuccess();
@@ -91,11 +96,10 @@ public class NotReadyHealthCheckTest {
      */
     public void resetInitialHealthCheckStatus()
             throws ConfigurationException, IOException, CliException, TimeoutException, InterruptedException {
-
         controller.start(ManualTests.ARQUILLIAN_CONTAINER);
         try {
 
-            try (OnlineManagementClient client = ManagementClientProvider.onlineStandalone()) {
+            try (OnlineManagementClient client = ManagementClientProvider.onlineStandalone(arqProps)) {
                 client.execute(
                         "/subsystem=microprofile-health-smallrye:write-attribute(name=empty-readiness-checks-status,value=${env.MP_HEALTH_EMPTY_READINESS_CHECKS_STATUS:UP})")
                         .assertSuccess();
@@ -160,16 +164,30 @@ public class NotReadyHealthCheckTest {
         return deployment;
     }
 
-    @Before
+    @Test
+    @InSequence(1)
     public void before() throws InterruptedException, TimeoutException, CliException, ConfigurationException, IOException {
+        arqProps = new ArquillianContainerProperties(
+                ArquillianDescriptorWrapper.getArquillianDescriptor(), ManualTests.ARQUILLIAN_CONTAINER);
         setInitialHealthCheckStatus();
+    }
+
+    @Test
+    @InSequence(4)
+    public void after() throws InterruptedException, TimeoutException, CliException, ConfigurationException, IOException {
+        resetInitialHealthCheckStatus();
+    }
+
+    @Before
+    public void createExecutorService()
+            throws InterruptedException, TimeoutException, CliException, ConfigurationException, IOException {
         executorService = Executors.newSingleThreadExecutor();
     }
 
     @After
-    public void after() throws InterruptedException, TimeoutException, CliException, ConfigurationException, IOException {
+    public void shutDownExecutorService()
+            throws InterruptedException, TimeoutException, CliException, ConfigurationException, IOException {
         executorService.shutdownNow();
-        resetInitialHealthCheckStatus();
     }
 
     /**
@@ -186,19 +204,20 @@ public class NotReadyHealthCheckTest {
      * @tpSince EAP 7.4.0.CD19
      */
     @Test
+    @InSequence(2)
     public void delayedConstructorTest()
             throws IOException, ConfigurationException, InterruptedException, TimeoutException, ExecutionException {
 
         File source = delayedDownReadinessCheckDeployment();
-        File dest = new File(System.getProperty("jboss.home") + "/standalone/deployments/" + source.getName());
+        File dest = new File(System.getProperty("container.base.dir.manual.mode") + "/deployments/" + source.getName());
         Files.copy(source.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
         try {
-            ReadinessChecker readinessChecker = new ReadinessChecker();
+            ReadinessChecker readinessChecker = new ReadinessChecker(arqProps);
             Future<Boolean> readinessCheckerFuture = executorService.submit(readinessChecker);
 
             controller.start(ManualTests.ARQUILLIAN_CONTAINER);
             try {
-                get(HealthUrlProvider.readyEndpoint()).then()
+                get(HealthUrlProvider.readyEndpoint(arqProps)).then()
                         .statusCode(503)
                         .body("status", is("DOWN"),
                                 "checks.name", containsInAnyOrder(DelayedReadinessHealthCheck.NAME));
@@ -235,20 +254,21 @@ public class NotReadyHealthCheckTest {
      * @tpSince EAP 7.4.0.CD19
      */
     @Test
+    @InSequence(3)
     public void unexpectedHealthChecksTest()
             throws IOException, ConfigurationException, InterruptedException, TimeoutException, ExecutionException {
 
         File source = unexpectedReadinessChecksDeployment();
-        File dest = new File(System.getProperty("jboss.home") + "/standalone/deployments/" + source.getName());
+        File dest = new File(System.getProperty("container.base.dir.manual.mode") + "/deployments/" + source.getName());
         Files.copy(source.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
         try {
-            ReadinessChecker readinessChecker = new ReadinessChecker();
+            ReadinessChecker readinessChecker = new ReadinessChecker(arqProps);
 
             Future<Boolean> readinessCheckerFuture = executorService.submit(readinessChecker);
 
             controller.start(ManualTests.ARQUILLIAN_CONTAINER);
             try {
-                get(HealthUrlProvider.readyEndpoint()).then()
+                get(HealthUrlProvider.readyEndpoint(arqProps)).then()
                         .statusCode(200)
                         .body("status", is("UP"),
                                 "checks.name", containsInAnyOrder(
