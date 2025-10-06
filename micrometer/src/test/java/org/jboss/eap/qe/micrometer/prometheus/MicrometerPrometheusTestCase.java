@@ -150,16 +150,19 @@ public class MicrometerPrometheusTestCase {
 
             // secure prometheus, but do not use authentication
             MicrometerPrometheusSetup.set(client, true);
-            response = fetchPrometheusMetricsRequireStatusCode(false, 401);
-            MatcherAssert.assertThat(response, containsString("401 - Unauthorized"));
+            try {
+                response = fetchPrometheusMetricsRequireStatusCode(false, 401);
+                MatcherAssert.assertThat(response, containsString("401 - Unauthorized"));
 
-            // keep prometheus secure, use authentication
-            response = fetchPrometheusMetricsRequireStatusCode(true, 200);
-            MatcherAssert.assertThat(response, containsString("jvm_uptime_seconds "));
-            MatcherAssert.assertThat(response, containsString("cpu_available_processors "));
+                // keep prometheus secure, use authentication
+                response = fetchPrometheusMetricsRequireStatusCode(true, 200);
+                MatcherAssert.assertThat(response, containsString("jvm_uptime_seconds "));
+                MatcherAssert.assertThat(response, containsString("cpu_available_processors "));
+            } finally {
+                MicrometerPrometheusSetup.set(client, false);
+            }
         } finally {
             MgmtUsersSetup.tearDown();
-            MicrometerPrometheusSetup.set(client, false);
         }
     }
 
