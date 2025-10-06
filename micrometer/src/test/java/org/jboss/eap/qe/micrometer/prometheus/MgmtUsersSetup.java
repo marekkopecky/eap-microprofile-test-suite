@@ -32,7 +32,7 @@ public class MgmtUsersSetup {
     }
 
     /**
-     * Backup original users and create new management user
+     * Backup original users and create new management users
      */
     public static void setup() throws Exception {
         mgmtUsersBackupContent = Files.readString(MGMT_USERS_FILE, StandardCharsets.UTF_8);

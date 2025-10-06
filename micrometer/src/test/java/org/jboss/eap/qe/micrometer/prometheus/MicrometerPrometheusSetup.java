@@ -22,7 +22,7 @@ public class MicrometerPrometheusSetup {
             "org.jboss.eap.xp.micrometer.prometheus.security-enabled");
 
     /**
-     * Enable prometheus with default TS configuration ("/prometheus" end-point with disabled security)
+     * Enable prometheus with most used configuration in this testsuite ("/prometheus" end-point with disabled security)
      *
      * @param client Creaper client
      */

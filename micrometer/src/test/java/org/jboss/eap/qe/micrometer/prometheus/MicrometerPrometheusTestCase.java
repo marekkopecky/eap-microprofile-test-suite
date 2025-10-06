@@ -168,8 +168,8 @@ public class MicrometerPrometheusTestCase {
      */
     @Test
     public void rbacTest() throws Exception {
+        MgmtUsersSetup.setup();
         try {
-            MgmtUsersSetup.setup();
             MicrometerPrometheusSetup.set(client, true);
             // Create the Monitor role mapping and associate the group Monitor with it
             client.execute("/core-service=management/access=authorization/role-mapping=Monitor:add");
@@ -191,10 +191,10 @@ public class MicrometerPrometheusTestCase {
                     Matchers.startsWith("io_max_pool_size"),
                     Matchers.endsWith("256.0"))));
         } finally {
-            client.execute("/core-service=management/access=authorization/role-mapping=Monitor:remove");
-            client.execute("/core-service=management/access=authorization:write-attribute(name=provider,value=simple)");
             MgmtUsersSetup.tearDown();
             MicrometerPrometheusSetup.set(client, false);
+            client.execute("/core-service=management/access=authorization/role-mapping=Monitor:remove");
+            client.execute("/core-service=management/access=authorization:write-attribute(name=provider,value=simple)");
         }
     }
 
@@ -212,23 +212,23 @@ public class MicrometerPrometheusTestCase {
             String password) throws Exception {
         String url = "http://" + server.getDefaultManagementAddress() + ":" + server.getDefaultManagementPort()
                 + MicrometerPrometheusSetup.getPrometheusContext();
-        try {
-            Client client;
-            if (authenticate) {
-                CredentialsProvider credentials = new BasicCredentialsProvider();
-                credentials.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(userName, password));
-                client = ((ResteasyClientBuilder) ClientBuilder.newBuilder())
-                        .httpEngine(ApacheHttpClientEngine
-                                .create(HttpClients.custom().setDefaultCredentialsProvider(credentials).build()))
-                        .build();
-            } else {
-                client = ClientBuilder.newClient();
-            }
-            try (Response response = client.target(url).request().get()) {
-                MatcherAssert.assertThat("Unexpected status of HTTP response", response.getStatus(),
-                        equalTo(requiredStatusCode));
-                return response.readEntity(String.class);
-            }
+
+        Client client;
+        if (authenticate) {
+            CredentialsProvider credentials = new BasicCredentialsProvider();
+            credentials.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(userName, password));
+            client = ((ResteasyClientBuilder) ClientBuilder.newBuilder())
+                    .httpEngine(ApacheHttpClientEngine
+                            .create(HttpClients.custom().setDefaultCredentialsProvider(credentials).build()))
+                    .build();
+        } else {
+            client = ClientBuilder.newClient();
+        }
+
+        try (Response response = client.target(url).request().get()) {
+            MatcherAssert.assertThat("Unexpected status of HTTP response", response.getStatus(),
+                    equalTo(requiredStatusCode));
+            return response.readEntity(String.class);
         } finally {
             client.close();
         }
