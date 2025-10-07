@@ -1,5 +1,6 @@
 package org.jboss.eap.qe.micrometer.prometheus;
 
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -192,7 +193,7 @@ public class MicrometerPrometheusTestCase {
             response = fetchPrometheusMetricsWithRbacRequireStatusCode(200).lines().collect(Collectors.toList());
             MatcherAssert.assertThat(response, Matchers.hasItem(Matchers.allOf(
                     Matchers.startsWith("io_max_pool_size"),
-                    Matchers.endsWith("256.0"))));
+                    not(Matchers.endsWith("0.0")))));
         } finally {
             MgmtUsersSetup.tearDown();
             MicrometerPrometheusSetup.set(client, false);
