@@ -19,7 +19,10 @@ import org.apache.http.impl.client.HttpClients;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.jboss.arquillian.junit.Arquillian;
+import org.jboss.eap.qe.microprofile.common.setuptasks.MicroProfileTelemetryServerConfiguration;
+import org.jboss.eap.qe.microprofile.common.setuptasks.MicrometerPrometheusSetup;
 import org.jboss.eap.qe.microprofile.common.setuptasks.MicrometerServerConfiguration;
+import org.jboss.eap.qe.microprofile.common.setuptasks.OpenTelemetryServerConfiguration;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.arquillian.ArquillianContainerProperties;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.arquillian.ArquillianDescriptorWrapper;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.creaper.ManagementClientProvider;
@@ -202,6 +205,19 @@ public class MicrometerPrometheusTestCase {
             client.execute("/core-service=management/access=authorization/role-mapping=Monitor:remove");
             client.execute("/core-service=management/access=authorization:write-attribute(name=provider,value=simple)");
         }
+    }
+
+    /**
+     * Check that info about more metrics subsystems are logged if MicroMeter Prometheus and WF-Metrics are enabled.
+     */
+    @Test
+    public void checkLogsAboutMoreMetricsSubsystemsTest() throws Exception {
+        MicroProfileTelemetryServerConfiguration.disableMicroProfileTelemetry(); // make sure that MP Telemetry is disabled
+        OpenTelemetryServerConfiguration.disableOpenTelemetry(); // make sure that OpenTelemetry is disabled
+        MatcherAssert.assertThat(
+                "There are WF-Metrics and MicroMeter metrics subsystems, there should be 1 warnings.",
+                client.execute(GET_LAST_LOGS_CLI_COMMAND).stringListValue(),
+                Matchers.hasItem(containsString("Additional metrics systems discovered")));
     }
 
     private String fetchPrometheusMetricsRequireStatusCode(boolean authenticate, int requiredStatusCode) throws Exception {

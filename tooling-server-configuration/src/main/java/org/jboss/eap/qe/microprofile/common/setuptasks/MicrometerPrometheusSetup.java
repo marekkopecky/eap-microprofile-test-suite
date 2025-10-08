@@ -1,4 +1,4 @@
-package org.jboss.eap.qe.micrometer.prometheus;
+package org.jboss.eap.qe.microprofile.common.setuptasks;
 
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
