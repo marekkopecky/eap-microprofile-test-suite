@@ -26,15 +26,12 @@ import org.jboss.eap.qe.microprofile.tooling.server.configuration.creaper.Manage
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClientEngine;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.wildfly.extras.creaper.core.online.OnlineManagementClient;
-import org.wildfly.extras.creaper.core.online.operations.Address;
-import org.wildfly.extras.creaper.core.online.operations.Operations;
 import org.wildfly.extras.creaper.core.online.operations.admin.Administration;
 
 /**
@@ -45,6 +42,7 @@ public class MicrometerPrometheusTestCase {
     private static OnlineManagementClient client = null;
     ArquillianContainerProperties server = new ArquillianContainerProperties(
             ArquillianDescriptorWrapper.getArquillianDescriptor());
+    private static final String GET_LAST_LOGS_CLI_COMMAND = "/subsystem=logging/log-file=server.log:read-log-file(lines=40)";
 
     private static boolean serverTypeCheck() {
         return System.getProperty("jboss.home").toLowerCase().contains("eap");
@@ -89,6 +87,10 @@ public class MicrometerPrometheusTestCase {
      */
     @Test
     public void basicPrometheusTest() throws Exception {
+        MatcherAssert.assertThat(
+                "There seems to be conflict between micrometer prometheus end-point and some another end-point.",
+                client.execute(GET_LAST_LOGS_CLI_COMMAND).stringListValue(),
+                not(Matchers.hasItem(containsString("WFLYMMTREXT0015"))));
         String response = fetchPrometheusMetricsRequireStatusCode(false, 200);
         MatcherAssert.assertThat(response, containsString("jvm_uptime_seconds "));
         MatcherAssert.assertThat(response, containsString("cpu_available_processors "));
@@ -101,10 +103,10 @@ public class MicrometerPrometheusTestCase {
     public void wfMetricsEnabledTest() throws Exception {
         try {
             MicrometerPrometheusSetup.set(client, "/metrics", false);
-            Assert.assertTrue(
+            MatcherAssert.assertThat(
                     "\"/metrics\" endpoint should be used by WF metrics, but MicroMeter allows to expose its own metrics there",
-                    !new Operations(client).invoke("read-boot-errors", Address.of("core-service", "management")).get("result")
-                            .asList().isEmpty());
+                    client.execute(GET_LAST_LOGS_CLI_COMMAND).stringListValue(),
+                    Matchers.hasItem(containsString("WFLYMMTREXT0015")));
         } finally {
             MicrometerPrometheusSetup.set(client, false);
         }
