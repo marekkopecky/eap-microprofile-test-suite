@@ -104,12 +104,12 @@ public class MicrometerPrometheusTestCase {
      */
     @Test
     public void wfMetricsEnabledTest() throws Exception {
+        MicrometerPrometheusSetup.set(client, "/metrics", false);
         try {
-            MicrometerPrometheusSetup.set(client, "/metrics", false);
             MatcherAssert.assertThat(
                     "\"/metrics\" endpoint should be used by WF metrics, but MicroMeter allows to expose its own metrics there",
                     client.execute(GET_LAST_LOGS_CLI_COMMAND).stringListValue(),
-                    Matchers.hasItem(containsString("WFLYMMTREXT0015")));
+                    Matchers.hasItem(containsString("WFLYDMHTTP0017")));
         } finally {
             MicrometerPrometheusSetup.set(client, false);
         }
@@ -121,18 +121,23 @@ public class MicrometerPrometheusTestCase {
      */
     @Test
     public void wfMetricsDisabledTest() throws Exception {
+        client.execute("/subsystem=metrics:remove");
         try {
-            client.execute("/subsystem=metrics:remove");
             client.execute("/extension=org.wildfly.extension.metrics:remove");
-            MicrometerPrometheusSetup.set(client, "/metrics", false);
-            String response = fetchPrometheusMetricsRequireStatusCode(false, 200);
-            MatcherAssert.assertThat(response, containsString("jvm_uptime_seconds "));
-            MatcherAssert.assertThat(response, containsString("cpu_available_processors "));
+            try {
+                MicrometerPrometheusSetup.set(client, "/metrics", false);
+                try {
+                    String response = fetchPrometheusMetricsRequireStatusCode(false, 200);
+                    MatcherAssert.assertThat(response, containsString("jvm_uptime_seconds "));
+                    MatcherAssert.assertThat(response, containsString("cpu_available_processors "));
+                } finally {
+                    MicrometerPrometheusSetup.set(client, false);
+                }
+            } finally {
+                client.execute("/extension=org.wildfly.extension.metrics:add");
+            }
         } finally {
-            client.execute("/extension=org.wildfly.extension.metrics:add");
-            client.execute(
-                    "/subsystem=metrics:add(exposed-subsystems=[\"*\"], prefix=\"${wildfly.metrics.prefix:jboss}\", security-enabled=false)");
-            MicrometerPrometheusSetup.set(client, false);
+            client.execute("/subsystem=metrics:add(exposed-subsystems=[\"*\"], prefix=\"${wildfly.metrics.prefix:jboss}\", security-enabled=false)");
         }
     }
 
@@ -147,9 +152,9 @@ public class MicrometerPrometheusTestCase {
      */
     @Test
     public void securityTest() throws Exception {
+        MgmtUsersSetup.setup();
         try {
-            // use authnetication, although prometheus is not secured yet
-            MgmtUsersSetup.setup();
+            // use authentication, although prometheus is not secured yet
             String response = fetchPrometheusMetricsRequireStatusCode(true, 200);
             MatcherAssert.assertThat(response, containsString("jvm_uptime_seconds "));
             MatcherAssert.assertThat(response, containsString("cpu_available_processors "));
@@ -180,30 +185,39 @@ public class MicrometerPrometheusTestCase {
         MgmtUsersSetup.setup();
         try {
             MicrometerPrometheusSetup.set(client, true);
-            // Create the Monitor role mapping and associate the group Monitor with it
-            client.execute("/core-service=management/access=authorization/role-mapping=Monitor:add");
-            client.execute(
-                    "/core-service=management/access=authorization/role-mapping=Monitor/include=group-monitors:add(name=Monitor, type=GROUP)");
-            // enable RBAC
-            client.execute("/core-service=management/access=authorization:write-attribute(name=provider,value=rbac)");
-            new Administration(client).reload();
+            try {
+                // Create the Monitor role mapping and associate the group Monitor with it
+                client.execute("/core-service=management/access=authorization/role-mapping=Monitor:add");
+                client.execute(
+                        "/core-service=management/access=authorization/role-mapping=Monitor/include=group-monitors:add(name=Monitor, type=GROUP)");
+                try {
+                    // enable RBAC
+                    client.execute("/core-service=management/access=authorization:write-attribute(name=provider,value=rbac)");
+                    try {
+                        new Administration(client).reload();
 
-            // get metrics with user without Monitor RBAC role
-            List<String> response = fetchPrometheusMetricsRequireStatusCode(true, 200).lines().collect(Collectors.toList());
-            MatcherAssert.assertThat(response, Matchers.hasItem(Matchers.allOf(
-                    Matchers.startsWith("io_max_pool_size"),
-                    Matchers.endsWith("0.0"))));
+                        // get metrics with user without Monitor RBAC role
+                        List<String> response = fetchPrometheusMetricsRequireStatusCode(true, 200).lines().collect(Collectors.toList());
+                        MatcherAssert.assertThat(response, Matchers.hasItem(Matchers.allOf(
+                                Matchers.startsWith("io_max_pool_size"),
+                                Matchers.endsWith("0.0"))));
 
-            // get metrics with user with Monitor RBAC role
-            response = fetchPrometheusMetricsWithRbacRequireStatusCode(200).lines().collect(Collectors.toList());
-            MatcherAssert.assertThat(response, Matchers.hasItem(Matchers.allOf(
-                    Matchers.startsWith("io_max_pool_size"),
-                    not(Matchers.endsWith("0.0")))));
+                        // get metrics with user with Monitor RBAC role
+                        response = fetchPrometheusMetricsWithRbacRequireStatusCode(200).lines().collect(Collectors.toList());
+                        MatcherAssert.assertThat(response, Matchers.hasItem(Matchers.allOf(
+                                Matchers.startsWith("io_max_pool_size"),
+                                not(Matchers.endsWith("0.0")))));
+                    } finally {
+                        client.execute("/core-service=management/access=authorization:write-attribute(name=provider,value=simple)");
+                    }
+                } finally {
+                    client.execute("/core-service=management/access=authorization/role-mapping=Monitor:remove");
+                }
+            } finally {
+                MicrometerPrometheusSetup.set(client, false);
+            }
         } finally {
             MgmtUsersSetup.tearDown();
-            MicrometerPrometheusSetup.set(client, false);
-            client.execute("/core-service=management/access=authorization/role-mapping=Monitor:remove");
-            client.execute("/core-service=management/access=authorization:write-attribute(name=provider,value=simple)");
         }
     }
 
