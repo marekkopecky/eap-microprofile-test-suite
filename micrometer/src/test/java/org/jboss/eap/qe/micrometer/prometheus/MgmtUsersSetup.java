@@ -26,7 +26,12 @@ public class MgmtUsersSetup {
      * Evaluate path of mgmt-users.properties configuration path
      */
     static {
-        String jbossHome = System.getProperty("jboss.home");
+        String jbossHome;
+        if (Boolean.getBoolean("ts.bootable")) {
+            jbossHome = System.getProperty("install.dir");
+        } else {
+            jbossHome = System.getProperty("jboss.home");
+        }
         MGMT_USERS_FILE = Path.of(jbossHome, "standalone", "configuration", "mgmt-users.properties");
         MGMT_GROUPS_FILE = Path.of(jbossHome, "standalone", "configuration", "mgmt-groups.properties");
     }
