@@ -3,6 +3,8 @@ package org.jboss.eap.qe.micrometer.prometheus;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
@@ -26,6 +28,7 @@ import org.jboss.eap.qe.microprofile.common.setuptasks.OpenTelemetryServerConfig
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.arquillian.ArquillianContainerProperties;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.arquillian.ArquillianDescriptorWrapper;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.creaper.ManagementClientProvider;
+import org.jboss.eap.qe.microprofile.tooling.server.log.ModelNodeLogChecker;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClientEngine;
 import org.junit.AfterClass;
@@ -45,7 +48,7 @@ public class MicrometerPrometheusTestCase {
     private static OnlineManagementClient client = null;
     ArquillianContainerProperties server = new ArquillianContainerProperties(
             ArquillianDescriptorWrapper.getArquillianDescriptor());
-    private static final String GET_LAST_LOGS_CLI_COMMAND = "/subsystem=logging/log-file=server.log:read-log-file(lines=40)";
+    private static final int GET_LAST_LOGS_COUNT = 40;
 
     private static boolean serverTypeCheck() {
         return System.getProperty("jboss.home").toLowerCase().contains("eap");
@@ -90,10 +93,8 @@ public class MicrometerPrometheusTestCase {
      */
     @Test
     public void basicPrometheusTest() throws Exception {
-        MatcherAssert.assertThat(
-                "There seems to be conflict between micrometer prometheus end-point and some another end-point.",
-                client.execute(GET_LAST_LOGS_CLI_COMMAND).stringListValue(),
-                not(Matchers.hasItem(containsString("WFLYMMTREXT0015"))));
+        assertFalse("There seems to be conflict between micrometer prometheus end-point and some another end-point.",
+                new ModelNodeLogChecker(client, GET_LAST_LOGS_COUNT).logContains("WFLYMMTREXT0015"));
         String response = fetchPrometheusMetricsRequireStatusCode(false, 200);
         MatcherAssert.assertThat(response, containsString("jvm_uptime_seconds "));
         MatcherAssert.assertThat(response, containsString("cpu_available_processors "));
@@ -106,10 +107,8 @@ public class MicrometerPrometheusTestCase {
     public void wfMetricsEnabledTest() throws Exception {
         MicrometerPrometheusSetup.set(client, "/metrics", false);
         try {
-            MatcherAssert.assertThat(
-                    "\"/metrics\" endpoint should be used by WF metrics, but MicroMeter allows to expose its own metrics there",
-                    client.execute(GET_LAST_LOGS_CLI_COMMAND).stringListValue(),
-                    Matchers.hasItem(containsString("WFLYDMHTTP0017")));
+            assertTrue("\"/metrics\" endpoint should be used by WF metrics, but MicroMeter allows to expose its own metrics there",
+                    new ModelNodeLogChecker(client, GET_LAST_LOGS_COUNT).logContains("WFLYDMHTTP0017"));
         } finally {
             MicrometerPrometheusSetup.set(client, false);
         }
@@ -228,10 +227,8 @@ public class MicrometerPrometheusTestCase {
     public void checkLogsAboutMoreMetricsSubsystemsTest() throws Exception {
         MicroProfileTelemetryServerConfiguration.disableMicroProfileTelemetry(); // make sure that MP Telemetry is disabled
         OpenTelemetryServerConfiguration.disableOpenTelemetry(); // make sure that OpenTelemetry is disabled
-        MatcherAssert.assertThat(
-                "There are WF-Metrics and MicroMeter metrics subsystems, there should be 1 warnings.",
-                client.execute(GET_LAST_LOGS_CLI_COMMAND).stringListValue(),
-                Matchers.hasItem(containsString("Additional metrics systems discovered")));
+        assertTrue("There are WF-Metrics and MicroMeter metrics subsystems, there should be 1 warnings.",
+                new ModelNodeLogChecker(client, GET_LAST_LOGS_COUNT).logContains("Additional metrics systems discovered"));
     }
 
     private String fetchPrometheusMetricsRequireStatusCode(boolean authenticate, int requiredStatusCode) throws Exception {

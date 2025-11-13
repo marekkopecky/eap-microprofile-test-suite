@@ -11,6 +11,7 @@ import org.jboss.eap.qe.microprofile.common.setuptasks.MicrometerServerConfigura
 import org.jboss.eap.qe.microprofile.telemetry.metrics.MPTelemetryServerSetupTask;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.creaper.ManagementClientProvider;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.deployment.ConfigurationUtil;
+import org.jboss.eap.qe.microprofile.tooling.server.log.ModelNodeLogChecker;
 import org.jboss.eap.qe.ts.common.docker.junit.DockerRequiredTests;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.StringAsset;
@@ -32,7 +33,7 @@ import org.wildfly.extras.creaper.core.online.OnlineManagementClient;
 @Ignore("https://issues.redhat.com/browse/JBEAP-28665 - scenario doesn't work at all on bootable jar and is instable on standard server")
 public class MoreMetricsImplementationsTest {
     private static OnlineManagementClient client = null;
-    private static final String GET_LAST_LOGS_CLI_COMMAND = "/subsystem=logging/log-file=server.log:read-log-file(lines=40)";
+    private static final int GET_LAST_LOGS_COUNT = 40;
 
     private static boolean serverTypeCheck() {
         return System.getProperty("jboss.home").toLowerCase().contains("eap");
@@ -77,12 +78,11 @@ public class MoreMetricsImplementationsTest {
     @RunAsClient
     public void logTest() throws Exception {
         int metricsSubsystemsCount = serverTypeCheck() ? 3 : 2;
+        ModelNodeLogChecker modelNodeLogChecker = new ModelNodeLogChecker(client, GET_LAST_LOGS_COUNT);
         MatcherAssert.assertThat(
                 "There are " + metricsSubsystemsCount + " metrics subsystems, there should be " + (metricsSubsystemsCount - 1)
                         + " warnings.",
-                (int) client.execute(GET_LAST_LOGS_CLI_COMMAND).stringListValue().stream()
-                        .filter(log -> log.contains("Additional metrics systems discovered"))
-                        .count(),
+                (int) modelNodeLogChecker.logCounts("Additional metrics systems discovered"),
                 Matchers.is(metricsSubsystemsCount - 1));
     }
 }
