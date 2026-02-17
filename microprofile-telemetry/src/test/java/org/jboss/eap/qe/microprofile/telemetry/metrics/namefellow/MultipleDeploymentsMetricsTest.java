@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.equalTo;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
 
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.container.test.api.OperateOnDeployment;
@@ -68,6 +69,10 @@ public class MultipleDeploymentsMetricsTest {
     @RunAsClient
     public void dataTest(@ArquillianResource @OperateOnDeployment(PING_ONE_SERVICE) URL pingOneUrl,
             @ArquillianResource @OperateOnDeployment(PING_TWO_SERVICE) URL pingTwoUrl) throws Exception {
+
+        // give it some time to actually be able and report some metrics via the Pmetheus URL
+        Thread.sleep(10_000);
+
         // increase metrics counters
         get(pingOneUrl.toString() + PingOneResource.RESOURCE)
                 .then()
@@ -77,16 +82,39 @@ public class MultipleDeploymentsMetricsTest {
                 .then()
                 .statusCode(200)
                 .body(equalTo(PingTwoService.MESSAGE));
+
+        // give it some time to actually be able and report some metrics via the Pmetheus URL
+        Thread.sleep(10_000);
+
         get(pingTwoUrl + PingTwoResource.RESOURCE).then().statusCode(200);
         get(pingTwoUrl + PingTwoResource.RESOURCE).then().statusCode(200);
         get(pingTwoUrl + PingTwoResource.RESOURCE).then().statusCode(200);
         get(pingOneUrl + PingOneResource.RESOURCE).then().statusCode(200);
 
         // give it some time to actually be able and report some metrics via the Pmetheus URL
-        Thread.sleep(1_000);
+        Thread.sleep(10_000);
 
         // get metrics
         List<PrometheusMetric> metrics = OpenTelemetryCollectorContainer.getInstance().fetchMetrics("");
+
+        System.out.println("____________________-");
+        System.out.println("____________________-");
+        System.out.println("____________________-");
+        System.out.println("____________________-");
+        System.out.println("____________________-");
+        System.out.println("metrics:");
+        for (PrometheusMetric metric : metrics) {
+            String tags = "";
+            for (Map.Entry<String, String> entry : metric.getTags().entrySet()) {
+                tags += "[" + entry.getKey() + ":" + entry.getValue() + "]";
+            };
+            System.out.println(metric.getKey() + " - " + metric.getType() + " - " + tags +  " = " + metric.getValue());
+        }
+        System.out.println("____________________-");
+        System.out.println("____________________-");
+        System.out.println("____________________-");
+        System.out.println("____________________-");
+        System.out.println("____________________-");
 
         // verify metrics
         Assert.assertTrue("\"ping_count\" metric for deployment one not found or not expected",

@@ -24,9 +24,11 @@ public class PingOneService {
                 .counterBuilder("ping_count")
                 .setDescription("Number of ping invocations")
                 .build();
+        System.out.println("PingOneService init");
     }
 
     public String ping() {
+        System.out.println("PingOneService ping");
         longCounter.add(1, Attributes.of(
                 AttributeKey.stringKey("_app"), PING_ONE_SERVICE_TAG));
         return MESSAGE;
