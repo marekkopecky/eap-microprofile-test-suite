@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.containsString;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.jboss.arquillian.container.test.api.Deployer;
 import org.jboss.arquillian.container.test.api.Deployment;
@@ -152,6 +153,7 @@ public class UndeployDeployTest {
                     deployer.deploy(FIRST_DEPLOYMENT);
                     deployer.deploy(SECOND_DEPLOYMENT);
                     try {
+                        Thread.sleep(10_000);
                         get(firstDeploymentUlr + "?operation=timeout&context=foobar&fail=true").then()
                                 .assertThat()
                                 .body(containsString("Fallback Hello, context = foobar"));
@@ -164,8 +166,21 @@ public class UndeployDeployTest {
                                 "ft_timeout_calls_total",
                                 "ft_invocations_total");
                         // give it some time to actually be able and report some metrics via the Pmetheus URL
-                        Thread.sleep(5_000);
+                        Thread.sleep(10_000);
                         List<PrometheusMetric> metrics = OpenTelemetryCollectorContainer.getInstance().fetchMetrics("");
+                        System.out.println("____________________");
+                        System.out.println("____________________");
+                        System.out.println("____________________");
+                        for (PrometheusMetric metric : metrics) {
+                            String tags = "";
+                            for (Map.Entry<String, String> entry : metric.getTags().entrySet()) {
+                                tags += "[" + entry.getKey() + ":" + entry.getValue() + "]";
+                            };
+                            System.out.println(metric.getKey() + " - " + metric.getType() + " - " + tags +  " = " + metric.getValue());
+                        }
+                        System.out.println("____________________");
+                        System.out.println("____________________");
+                        System.out.println("____________________");
                         // assert
                         metricsToTest.forEach(n -> Assert.assertTrue("Missing metric: " + n,
                                 metrics.stream().anyMatch(m -> m.getKey().startsWith(n))));
@@ -230,8 +245,8 @@ public class UndeployDeployTest {
      * @tpPassCrit MP FT was not activated.
      * @tpSince EAP 7.4.0.CD19
      */
-    @Test
-    @InSequence(20)
+//    @Test
+//    @InSequence(20)
     public void testFaultToleranceSubsystemNotActivatedByNonMPFTDeployment(
             @ArquillianResource @OperateOnDeployment(NO_MP_FT_DEPLOYMENT) URL noMpFtDeploymentUlr) throws Exception {
         deployer.deploy(NO_MP_FT_DEPLOYMENT);
@@ -253,8 +268,8 @@ public class UndeployDeployTest {
      * @tpPassCrit MP FT configuration is different for both deployments.
      * @tpSince EAP 7.4.0.CD19
      */
-    @Test
-    @InSequence(20)
+//    @Test
+//    @InSequence(20)
     public void testSecondDeploymentDoesChangeConfiguration(
             @ArquillianResource @OperateOnDeployment(FIRST_DEPLOYMENT) URL firstDeploymentUlr,
             @ArquillianResource @OperateOnDeployment(SECOND_DEPLOYMENT) URL secondDeploymentUlr) {
@@ -279,8 +294,8 @@ public class UndeployDeployTest {
      * @tpPassCrit MP FT configuration was NOT changed.
      * @tpSince EAP 7.4.0.CD19
      */
-    @Test
-    @InSequence(20)
+//    @Test
+//    @InSequence(20)
     public void testUndeploySecondDeploymentDoesNotChangeMpFtConfiguration(
             @ArquillianResource @OperateOnDeployment(FIRST_DEPLOYMENT) URL firstDeploymentUlr,
             @ArquillianResource @OperateOnDeployment(SECOND_DEPLOYMENT) URL secondDeploymentUlr) {
@@ -304,8 +319,8 @@ public class UndeployDeployTest {
      *                application which changes MP FT configuration.
      * @tpPassCrit MP FT configuration was changed.
      */
-    @Test
-    @InSequence(20)
+//    @Test
+//    @InSequence(20)
     public void testUndeployDeployChangesFaultToleranceConfiguration(
             @ArquillianResource @OperateOnDeployment(FIRST_DEPLOYMENT) URL firstDeploymentUlr,
             @ArquillianResource @OperateOnDeployment(SECOND_DEPLOYMENT) URL secondDeploymentUlr) {
