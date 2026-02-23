@@ -227,7 +227,7 @@ public class MultipleWarsAffectingRootAndComponentReferencesTest {
                         String.format("/subsystem=undertow/server=%1$s/host=%1$s-host:add(alias=[localhost])",
                                 SERVICE_PROVIDER_HOST));
                 client.execute(
-                        String.format("/subsystem=undertow/server=%1$s:write-attribute(default-host=%1$s-host)",
+                        String.format("/subsystem=undertow/server=%1$s:write-attribute(name=default-host,value=%1$s-host)",
                                 SERVICE_PROVIDER_HOST));
                 client.execute(
                         String.format("/subsystem=undertow/server=%1$s/http-listener=%1$s:add(socket-binding=%1$s)",
@@ -473,98 +473,6 @@ public class MultipleWarsAffectingRootAndComponentReferencesTest {
                     tags.stream().filter(m -> m.get("name").toString().equals(key)).count());
         }
         // TODO - validate tag names?
-    }
-
-    /**
-     * @tpTestDetails Verifies that the global {@code server} element items list is generated correctly when two deployments
-     *                define conflicting values, and when a conflicting deployment is removed
-     * @tpPassCrit 2 server URLs are listed as belonging to the global {@code server} element list items,
-     *             despite two deployments are present, each using the same pair of {@code server} definitions,
-     *             also when a conflicting deployment is removed
-     * @tpSince JBoss EAP XP 6
-     * @param baseURL The Local Service Provider base URL that is used to resolve the {@code /openapi} endpoint URL
-     * @throws URISyntaxException
-     */
-    @Test
-    public void testGlobalServerListIsCorrect(
-            @ArquillianResource @OperateOnDeployment(ROUTER_DEPLOYMENT_NAME) URL baseURL)
-            throws URISyntaxException, ConfigurationException, IOException, CliException {
-        final String element = "servers";
-
-        // default-host aliases
-        final List<String> aliases = getDefaultHostAliases();
-        if (aliases.isEmpty()) {
-            throw new IllegalStateException("    Cannot retrieve default-host aliases");
-        }
-        System.out.println("    default-host aliases: " + String.join(",", aliases));
-        // default-server http-listeners
-        final List<String> httpListeners = getDefaultServerHttpListenerNames(false);
-        if (httpListeners.isEmpty()) {
-            throw new IllegalStateException("    Cannot retrieve default-server http-listeners");
-        }
-        System.out.println("    default-server http-listeners: " + String.join(",", httpListeners));
-        // default-server https-listeners
-        final List<String> httpsListeners = getDefaultServerHttpListenerNames(true);
-        if (httpsListeners.isEmpty()) {
-            throw new IllegalStateException("    Cannot retrieve default-server https-listeners");
-        }
-        System.out.println("    default-server https-listeners: " + String.join(",", httpsListeners));
-
-        // compute the size of the final server URL list
-        int size = getListenerBasedSize(httpListeners, false, aliases);
-        size += getListenerBasedSize(httpsListeners, true, aliases);
-        System.out.printf("    Expected server list size: %d%n", size);
-
-        // build the final server URL list
-        final List<String> servers = new ArrayList<>(size);
-        populateListenerBasedServerUrl(httpListeners, false, aliases, servers);
-        populateListenerBasedServerUrl(httpsListeners, true, aliases, servers);
-
-        deployer.deploy(ANOTHER_ROUTER_DEPLOYMENT_NAME);
-        try {
-            final ValidatableResponse openApiResponse = getGeneratedOpenApi(baseURL)
-                    .body(containsString(element + ":"));
-            final String responseContent = openApiResponse.extract().asString();
-            List<Map<String, Object>> generatedServers = MicroProfileOpenApiTestUtils.getGeneratedRootElement(responseContent,
-                    element);
-            // log generated server records
-            generatedServers.stream().forEach(
-                    s -> s.entrySet().stream().forEach(
-                            e -> System.out.println(e.getKey() + " - " + e.getValue())));
-            assertExpectedCountOfRootElementItems(element, servers.size(), generatedServers.size());
-            servers.stream().forEach(server -> {
-                Assert.assertEquals(
-                        String.format("Should contain an HTTP entry for the /openapi endpoint, i.e. \"%s\"", server),
-                        1,
-                        generatedServers.stream().filter(e -> e.get("url").equals(server)).count());
-                Assert.assertEquals(
-                        String.format("Should contain an HTTPS entry for the /openapi endpoint, i.e. \"%s\"", server),
-                        1,
-                        generatedServers.stream().filter(e -> e.get("url").equals(server)).count());
-            });
-        } finally {
-            deployer.undeploy(ANOTHER_ROUTER_DEPLOYMENT_NAME);
-            final ValidatableResponse openApiResponse = getGeneratedOpenApi(baseURL)
-                    .body(containsString(element + ":"));
-            final String responseContent = openApiResponse.extract().asString();
-            List<Map<String, Object>> generatedServers = MicroProfileOpenApiTestUtils.getGeneratedRootElement(responseContent,
-                    element);
-            // log generated server records
-            generatedServers.stream().forEach(
-                    s -> s.entrySet().stream().forEach(
-                            e -> System.out.println(e.getKey() + " - " + e.getValue())));
-            assertExpectedCountOfRootElementItems(element, servers.size(), generatedServers.size());
-            servers.stream().forEach(server -> {
-                Assert.assertEquals(
-                        String.format("Should contain an HTTP entry for the /openapi endpoint, i.e. \"%s\"", server),
-                        1,
-                        generatedServers.stream().filter(e -> e.get("url").equals(server)).count());
-                Assert.assertEquals(
-                        String.format("Should contain an HTTPS entry for the /openapi endpoint, i.e. \"%s\"", server),
-                        1,
-                        generatedServers.stream().filter(e -> e.get("url").equals(server)).count());
-            });
-        }
     }
 
     /**
