@@ -75,8 +75,8 @@
                 <plugins>
                     <!-- Bootable JAR Maven plugin -->
                     <plugin>
-                        <groupId>org.wildfly.plugins</groupId>
-                        <artifactId>wildfly-jar-maven-plugin</artifactId>
+                        <groupId>${testsuite.org.wildfly.plugins.wildfly-maven-plugin.groupId}</groupId>
+                        <artifactId>${testsuite.org.wildfly.plugins.wildfly-maven-plugin.artifactId}</artifactId>
                         <executions>
                             <!-- Package a cloud-server -->
                             <execution>
@@ -86,13 +86,13 @@
                                 </goals>
                                 <phase>process-test-resources</phase>
                                 <configuration>
-                                    <output-file-name>test-microprofile-config-bootable.jar</output-file-name>
-                                    <hollowJar>true</hollowJar>
-                                    <record-state>false</record-state>
-                                    <log-time>${galleon.log.time}</log-time>
-                                    <plugin-options>
+                                    <bootable-jar-name>test-microprofile-config-bootable.jar</bootable-jar-name>
+                                    <skipDeployment>true</skipDeployment>
+                                    <record-provisioning-state>false</record-provisioning-state>
+                                    <log-provisioning-time>${galleon.log.time}</log-provisioning-time>
+                                    <galleon-options>
                                         <jboss-fork-embedded>${galleon.fork.embedded}</jboss-fork-embedded>
-                                    </plugin-options>
+                                    </galleon-options>
                                     <feature-packs>
                                         <feature-pack>
                                             <groupId>${testsuite.galleon.pack.groupId}</groupId>
@@ -103,6 +103,7 @@
                                     <layers>
                                         <layer>cloud-server</layer>
                                     </layers>
+                                    <bootable-jar>true</bootable-jar>
                                 </configuration>
                             </execution>
                         </executions>

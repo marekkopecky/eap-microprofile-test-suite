@@ -54,9 +54,11 @@ public class MicrometerPrometheusTestCase {
     private static boolean serverTypeCheck() {
         String manifectArtifactId = System.getProperty("channel-manifest.artifactId");
         // standard distribution
-        return (System.getProperty("ts.bootable") == null && Paths.get(System.getProperty("jboss.home")).getFileName().toString().toLowerCase().contains("eap")) ||
-                // bootable jar distribution
-                (System.getProperty("ts.bootable") != null && manifectArtifactId != null && manifectArtifactId.toLowerCase().contains("eap"));
+        return (System.getProperty("ts.bootable") == null
+                && Paths.get(System.getProperty("jboss.dist")).getFileName().toString().toLowerCase().contains("eap")) ||
+        // bootable jar distribution
+                (System.getProperty("ts.bootable") != null && manifectArtifactId != null
+                        && manifectArtifactId.toLowerCase().contains("eap"));
     }
 
     @Before
