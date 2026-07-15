@@ -125,8 +125,8 @@
                 <plugins>
                     <!-- Bootable JAR Maven plugin -->
                     <plugin>
-                        <groupId>org.wildfly.plugins</groupId>
-                        <artifactId>wildfly-jar-maven-plugin</artifactId>
+                        <groupId>${testsuite.org.wildfly.plugins.wildfly-maven-plugin.groupId}</groupId>
+                        <artifactId>${testsuite.org.wildfly.plugins.wildfly-maven-plugin.artifactId}</artifactId>
                         <executions>
                             <!-- Provision a server with the core functionality we will provide in OpenShift images -->
                             <execution>
@@ -136,13 +136,13 @@
                                 </goals>
                                 <phase>process-test-resources</phase>
                                 <configuration>
-                                    <output-file-name>test-microprofile-metrics-bootable.jar</output-file-name>
-                                    <hollowJar>true</hollowJar>
-                                    <record-state>false</record-state>
-                                    <log-time>${galleon.log.time}</log-time>
-                                    <plugin-options>
+                                    <bootable-jar-name>test-microprofile-metrics-bootable.jar</bootable-jar-name>
+                                    <skipDeployment>true</skipDeployment>
+                                    <record-provisioning-state>false</record-provisioning-state>
+                                    <log-provisioning-time>${galleon.log.time}</log-provisioning-time>
+                                    <galleon-options>
                                         <jboss-fork-embedded>${galleon.fork.embedded}</jboss-fork-embedded>
-                                    </plugin-options>
+                                    </galleon-options>
                                     <feature-packs>
                                         <feature-pack>
                                             <groupId>${testsuite.galleon.pack.groupId}</groupId>
@@ -155,14 +155,15 @@
                                         <layer>undertow-https</layer>
                                         <layer>micrometer</layer>
                                     </layers>
-                                    <cli-sessions>
-                                        <cli-session>
+                                    <packaging-scripts>
+                                        <execution>
                                             <resolve-expressions>false</resolve-expressions>
-                                            <script-files>
+                                            <scripts>
                                                 <script>${project.basedir}/src/test/resources/expose.management.interface.cli</script>
-                                            </script-files>
-                                        </cli-session>
-                                    </cli-sessions>
+                                            </scripts>
+                                        </execution>
+                                    </packaging-scripts>
+                                    <bootable-jar>true</bootable-jar>
                                 </configuration>
                             </execution>
                         </executions>

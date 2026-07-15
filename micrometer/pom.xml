@@ -28,12 +28,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>jakarta.ws.rs</groupId>
-            <artifactId>jakarta.ws.rs-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
         </dependency>
@@ -128,8 +122,8 @@
                     </plugin>
                     <!-- Bootable JAR Maven plugin -->
                     <plugin>
-                        <groupId>org.wildfly.plugins</groupId>
-                        <artifactId>wildfly-jar-maven-plugin</artifactId>
+                        <groupId>${testsuite.org.wildfly.plugins.wildfly-maven-plugin.groupId}</groupId>
+                        <artifactId>${testsuite.org.wildfly.plugins.wildfly-maven-plugin.artifactId}</artifactId>
                         <executions>
                             <!-- Provision a server with the core functionality we will provide in OpenShift images -->
                             <execution>
@@ -139,13 +133,13 @@
                                 </goals>
                                 <phase>process-test-resources</phase>
                                 <configuration>
-                                    <output-file-name>test-micrometer-bootable.jar</output-file-name>
-                                    <hollowJar>true</hollowJar>
-                                    <record-state>false</record-state>
-                                    <log-time>${galleon.log.time}</log-time>
-                                    <plugin-options>
+                                    <bootable-jar-name>test-micrometer-bootable.jar</bootable-jar-name>
+                                    <skipDeployment>true</skipDeployment>
+                                    <record-provisioning-state>false</record-provisioning-state>
+                                    <log-provisioning-time>${galleon.log.time}</log-provisioning-time>
+                                    <galleon-options>
                                         <jboss-fork-embedded>${galleon.fork.embedded}</jboss-fork-embedded>
-                                    </plugin-options>
+                                    </galleon-options>
                                     <feature-packs>
                                         <feature-pack>
                                             <groupId>${testsuite.galleon.pack.groupId}</groupId>
@@ -157,6 +151,7 @@
                                         <layer>cloud-server</layer>
                                         <layer>micrometer</layer>
                                     </layers>
+                                    <bootable-jar>true</bootable-jar>
                                 </configuration>
                             </execution>
                         </executions>

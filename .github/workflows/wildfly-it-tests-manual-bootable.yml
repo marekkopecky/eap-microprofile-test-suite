@@ -3,8 +3,8 @@ name: WildFly Integration Tests (Bootable JAR) - Manual execution
 on:
   workflow_dispatch:
     inputs:
-      wildfly-jar-maven-plugin-version:
-        description: 'The WildFly JAR Maven (Bootable JAR) plugin version that will be used when running the tests'
+      wildfly-maven-plugin-version:
+        description: 'The WildFly Maven plugin version that will be used when running the tests'
         required: false
         default: ""
         type: string
@@ -65,13 +65,13 @@ jobs:
         run: |
           echo "MAVEN_ARGS_WILDFLY_DIST_LOCATION=-Djboss.dist=${PWD}/local-wildfly/dist/target/wildfly-${{ env.MAVEN_ARGS_WILDFLY_VERSION }}" >> "$GITHUB_ENV"
         if: ${{ inputs.build-wildFly == true }}
-      - name: Set the value for the WildFly JAR (Bootable JAR) Maven plugin version
+      - name: Set the value for the WildFly Maven plugin version
         run: |
-          echo "MAVEN_ARGS_WILDFLY_JAR_MAVEN_PLUGIN_VERSION=-Dversion.org.wildfly.jar.plugin=${{ inputs.wildfly-jar-maven-plugin-version }}" >> "$GITHUB_ENV"
-        if: ${{ ! inputs.wildfly-jar-maven-plugin-version == '' }}
+          echo "MAVEN_ARGS_WILDFLY_MAVEN_PLUGIN_VERSION=-Dtestsuite.org.wildfly.plugins.wildfly-maven-plugin.version=${{ inputs.wildfly-maven-plugin-version }}" >> "$GITHUB_ENV"
+        if: ${{ ! inputs.wildfly-maven-plugin-version == '' }}
       - name: Build and run integration tests (${{ matrix.java-distribution }} ${{ matrix.java-version }}) against latest WildFly, on ${{ matrix.os }}
         if: ${{ matrix.os  == 'ubuntu-latest' }}
-        run: mvn clean verify --batch-mode -fae "-Dts.bootable" "-Dcurrent-execution.excluded-groups=org.jboss.eap.qe.microprofile.health.junit.HealthWithFaultToleranceTests,org.jboss.eap.qe.microprofile.health.junit.ManualTests" ${{ env.MAVEN_ARGS_WILDFLY_DIST_LOCATION }} ${{ env.MAVEN_ARGS_WILDFLY_DIST_VERSION }} ${{ env.MAVEN_ARGS_WILDFLY_JAR_MAVEN_PLUGIN_VERSION }}
+        run: mvn clean verify --batch-mode -fae "-Dts.bootable" "-Dcurrent-execution.excluded-groups=org.jboss.eap.qe.microprofile.health.junit.HealthWithFaultToleranceTests,org.jboss.eap.qe.microprofile.health.junit.ManualTests" ${{ env.MAVEN_ARGS_WILDFLY_DIST_LOCATION }} ${{ env.MAVEN_ARGS_WILDFLY_DIST_VERSION }} ${{ env.MAVEN_ARGS_WILDFLY_MAVEN_PLUGIN_VERSION }}
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
